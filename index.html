@@ -49,12 +49,15 @@
     "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
     "@google/genai": "https://esm.sh/@google/genai@1.39.0",
     "phaser": "https://esm.sh/phaser@3.87.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "vite": "https://esm.sh/vite@^7.3.1"
   }
 }
 </script>
 </head>
 <body>
     <div id="root"></div>
+    <!-- Changed to relative path for better deployment compatibility -->
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>
