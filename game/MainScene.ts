@@ -1,4 +1,3 @@
-
 import Phaser from 'phaser';
 import { GameStats, TowerConfig, TargetingPriority, TowerInstance } from "../types";
 
@@ -10,13 +9,14 @@ enum EnemyArchetype {
 }
 
 export class MainScene extends Phaser.Scene {
+  // Fix: Explicitly declare Phaser built-in properties to satisfy TypeScript compiler
   public add!: Phaser.GameObjects.GameObjectFactory;
   public physics!: Phaser.Physics.Arcade.ArcadePhysics;
   public input!: Phaser.Input.InputPlugin;
-  public cameras!: Phaser.Cameras.Scene2D.CameraManager;
+  public scale!: Phaser.Scale.ScaleManager;
   public time!: Phaser.Time.Clock;
   public tweens!: Phaser.Tweens.TweenManager;
-  public scale!: Phaser.Scale.ScaleManager;
+  public cameras!: Phaser.Cameras.Scene2D.CameraManager;
 
   private path: Phaser.Curves.Path | null = null;
   private graphics: Phaser.GameObjects.Graphics | null = null;
@@ -74,7 +74,6 @@ export class MainScene extends Phaser.Scene {
     };
     this.selectedTowerObject = null;
     this.scaledTime = 0;
-    this.timeScale = multiplierToSpeed(1); // Helper placeholder if needed
     this.timeScale = 1;
   }
 
@@ -632,5 +631,3 @@ export class MainScene extends Phaser.Scene {
     this.drawPath();
   }
 }
-
-function multiplierToSpeed(m: number) { return m; }
