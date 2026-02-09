@@ -9,14 +9,13 @@ enum EnemyArchetype {
 }
 
 export class MainScene extends Phaser.Scene {
-  // Fix: Explicitly declare Phaser built-in properties to satisfy TypeScript compiler
-  public add!: Phaser.GameObjects.GameObjectFactory;
-  public physics!: Phaser.Physics.Arcade.ArcadePhysics;
-  public input!: Phaser.Input.InputPlugin;
-  public scale!: Phaser.Scale.ScaleManager;
-  public time!: Phaser.Time.Clock;
-  public tweens!: Phaser.Tweens.TweenManager;
-  public cameras!: Phaser.Cameras.Scene2D.CameraManager;
+  declare public add: Phaser.GameObjects.GameObjectFactory;
+  declare public physics: Phaser.Physics.Arcade.ArcadePhysics;
+  declare public input: Phaser.Input.InputPlugin;
+  declare public scale: Phaser.Scale.ScaleManager;
+  declare public time: Phaser.Time.Clock;
+  declare public tweens: Phaser.Tweens.TweenManager;
+  declare public cameras: Phaser.Cameras.Scene2D.CameraManager;
 
   private path: Phaser.Curves.Path | null = null;
   private graphics: Phaser.GameObjects.Graphics | null = null;
