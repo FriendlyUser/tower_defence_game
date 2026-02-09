@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -54,10 +53,13 @@
   }
 }
 </script>
+<script>
+    // Polyfill process.env for the browser to prevent crashes when accessing API_KEY
+    window.process = { env: { API_KEY: "" } };
+</script>
 </head>
 <body>
     <div id="root"></div>
-    <!-- Changed to relative path for better deployment compatibility -->
-    <script type="module" src="./index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
