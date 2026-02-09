@@ -19,8 +19,7 @@
     "strictNullChecks": false,
     "noImplicitThis": false,
     "alwaysStrict": false,
-    "checkJs": false,
-    "suppressImplicitAnyIndexErrors": true
+    "checkJs": false
   },
   "include": ["./**/*.ts", "./**/*.tsx"]
 }
