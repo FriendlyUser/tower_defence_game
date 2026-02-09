@@ -74,6 +74,7 @@ export class MainScene extends Phaser.Scene {
     };
     this.selectedTowerObject = null;
     this.scaledTime = 0;
+    this.timeScale = multiplierToSpeed(1); // Helper placeholder if needed
     this.timeScale = 1;
   }
 
@@ -86,6 +87,7 @@ export class MainScene extends Phaser.Scene {
     this.towers = this.physics.add.staticGroup();
     this.projectiles = this.physics.add.group();
 
+    this.updateMapDimensions();
     this.createPath();
     this.drawPath();
 
@@ -104,14 +106,22 @@ export class MainScene extends Phaser.Scene {
     this.onStatsUpdate(this.stats);
   }
 
+  private updateMapDimensions() {
+    // Extend map width as levels progress. Start at 800, grow up to ~5300 at level 30
+    const targetWidth = 800 + (this.stats.level - 1) * 150;
+    this.scale.resize(targetWidth, 600);
+    this.physics.world.setBounds(0, 0, targetWidth, 600);
+  }
+
   private createPath() {
     const { width, height } = this.scale;
     this.path = new Phaser.Curves.Path(-50, height / 2);
-    // Path becomes more complex faster: max 15 segments reached by level 30
-    const segments = Math.min(3 + Math.floor(this.stats.level / 2.5), 15);
+    // Path complexity scales with map width and level
+    const segments = Math.min(3 + Math.floor(this.stats.level / 2), 25);
     for (let i = 1; i <= segments; i++) {
       const x = (width / segments) * i;
-      const y = i === segments ? height / 2 : Phaser.Math.Between(80, height - 80);
+      // Last segment returns to middle-right
+      const y = i === segments ? height / 2 : Phaser.Math.Between(100, height - 100);
       this.path.lineTo(x, y);
     }
   }
@@ -119,10 +129,29 @@ export class MainScene extends Phaser.Scene {
   private drawPath() {
     if (!this.graphics || !this.path) return;
     this.graphics.clear();
+    
+    // Outer glow
+    this.graphics.lineStyle(48, 0x3b82f6, 0.05);
+    this.path.draw(this.graphics);
+    
+    // Main track structure
     this.graphics.lineStyle(40, 0x1e293b, 1);
     this.path.draw(this.graphics);
+    
+    // Tech borders
     this.graphics.lineStyle(2, 0x334155, 1);
     this.path.draw(this.graphics);
+
+    // Decorative "power line" markers
+    this.graphics.lineStyle(1, 0x475569, 0.3);
+    const points = this.path.getSpacedPoints(Math.floor(this.scale.width / 40));
+    points.forEach((p, index) => {
+        if (index % 2 === 0) {
+            const tangent = this.path!.getTangent(index / (points.length - 1));
+            const normal = new Phaser.Math.Vector2(-tangent.y, tangent.x).normalize().scale(20);
+            this.graphics!.lineBetween(p.x + normal.x, p.y + normal.y, p.x - normal.x, p.y - normal.y);
+        }
+    });
   }
 
   public setGameSpeed(multiplier: number) {
@@ -169,7 +198,6 @@ export class MainScene extends Phaser.Scene {
     if (this.waveInProgress && this.enemiesRemaining > 0 && this.scaledTime > this.nextEnemyTime) {
       this.spawnEnemy();
       this.enemiesRemaining--;
-      // Spawn speed ramps up faster per level
       this.nextEnemyTime = this.scaledTime + (1200 / (1 + this.stats.level * 0.4));
     }
 
@@ -190,7 +218,9 @@ export class MainScene extends Phaser.Scene {
     this.enemies?.getChildren().forEach((enemyObj: any) => {
       const enemy = enemyObj as any;
       if (!enemy.active) return;
-      enemy.t += (enemy.speed * scaledDelta) / 100000;
+      // Enemies cover distance based on path length - speed is adjusted so travel time is relatively consistent
+      const mapLengthFactor = this.scale.width / 800;
+      enemy.t += (enemy.speed * scaledDelta) / (100000 * mapLengthFactor);
       const pos = this.path?.getPoint(enemy.t);
       if (pos) {
         enemy.setPosition(pos.x, pos.y);
@@ -253,26 +283,24 @@ export class MainScene extends Phaser.Scene {
         hpMultiplier = 0.5;
         speedMultiplier = 1.7;
         size = { w: 14, h: 24 };
-        color = 0xfacc15; // Yellow
+        color = 0xfacc15; 
         break;
       case EnemyArchetype.GOLIATH:
         hpMultiplier = 4.0;
         speedMultiplier = 0.6;
         size = { w: 34, h: 34 };
-        color = 0xa855f7; // Purple
+        color = 0xa855f7; 
         stroke = 0xdedede;
         break;
       case EnemyArchetype.BOSS:
         hpMultiplier = 15 + (level / 2);
         speedMultiplier = 0.5;
         size = { w: 42, h: 42 };
-        color = 0xef4444; // Red
+        color = 0xef4444; 
         stroke = 0xffffff;
         break;
     }
 
-    // Health and Speed scale faster for 30 levels
-    // Lowered early game health (1-5) via power curve
     const baseHp = 15 + Math.pow(level, 1.6) * 8 + (level * 15);
     const baseSpeed = 3.2 + (level * 0.45);
     
@@ -341,7 +369,6 @@ export class MainScene extends Phaser.Scene {
     const arrow = this.add.triangle(tower.x, tower.y, 0, 16, 8, 0, 16, 16, tower.config.color);
     arrow.setStrokeStyle(2, 0xffffff, 1.0);
     arrow.setDepth(8);
-    // Visual indicator of level on projectile size
     arrow.setScale(1 + (tower.level - 1) * 0.15);
     
     this.physics.add.existing(arrow);
@@ -368,13 +395,12 @@ export class MainScene extends Phaser.Scene {
 
     let finalDamage = projectile.damage;
 
-    // Tactical Resistances / Vulnerabilities for Heavy Units
     if (enemy.archetype === EnemyArchetype.GOLIATH || enemy.archetype === EnemyArchetype.BOSS) {
       if (projectile.towerId === 'rapid') {
-        finalDamage *= 0.5; // Rapid towers are resisted by armor
+        finalDamage *= 0.5; 
       }
       if (projectile.towerId === 'sniper') {
-        finalDamage *= 1.25; // Sniper towers pierce armor
+        finalDamage *= 1.25; 
       }
     }
 
@@ -403,7 +429,6 @@ export class MainScene extends Phaser.Scene {
     });
 
     if (enemy.hp <= 0) {
-      // Rewards scale faster for 30 levels
       let goldReward = 40 + Math.floor(this.stats.level * 8);
       let scoreReward = 800 * this.stats.level;
       
@@ -448,7 +473,6 @@ export class MainScene extends Phaser.Scene {
     const towerInner = this.add.triangle(x, y, 0, 14, 7, 0, 14, 14, towerColor);
     towerInner.setDepth(7);
 
-    // Level indicator text
     const levelText = this.add.text(x, y + 25, "L1", { fontSize: '10px', color: '#ffffff', fontStyle: 'bold' });
     levelText.setOrigin(0.5);
     levelText.setDepth(10);
@@ -518,17 +542,11 @@ export class MainScene extends Phaser.Scene {
     const tower = towersArr.find(t => t.id === towerId);
     if (tower) {
       tower.level++;
-      // Apply stat boosts
       tower.config.damage = Math.floor(tower.config.damage * 1.5);
       tower.config.fireRate = Math.floor(tower.config.fireRate * 0.85);
       
-      // Update UI label
       if (tower.lvlLabel) tower.lvlLabel.setText(`L${tower.level}`);
       
-      // Visual feedback
-      const towerColor = tower.config.color;
-      
-      // 1. Scale bump
       this.tweens.add({
         targets: [tower, tower.inner],
         scale: 1 + (tower.level - 1) * 0.1,
@@ -536,7 +554,6 @@ export class MainScene extends Phaser.Scene {
         ease: 'Back.out'
       });
 
-      // 2. Upgrade effect (sparkle burst)
       for (let i = 0; i < 12; i++) {
         const angle = Phaser.Math.DegToRad(i * 30);
         const particle = this.add.star(tower.x, tower.y, 5, 2, 6, 0xffffff);
@@ -553,7 +570,6 @@ export class MainScene extends Phaser.Scene {
         });
       }
 
-      // Re-select to update UI in React
       this.selectTower(tower);
     }
   }
@@ -597,7 +613,6 @@ export class MainScene extends Phaser.Scene {
     this.waveInProgress = true;
     this.stats.waveActive = true;
     const isBossLevel = this.stats.level % 10 === 0;
-    // Enemies remaining grows much faster for 30 levels
     this.enemiesRemaining = isBossLevel ? Math.max(1, Math.floor(this.stats.level / 5)) : 20 + Math.floor(this.stats.level * 8);
     this.onStatsUpdate({ ...this.stats });
   }
@@ -606,11 +621,16 @@ export class MainScene extends Phaser.Scene {
     this.waveInProgress = false;
     this.stats.waveActive = false;
     this.stats.level++;
-    // Gold rewards scale up to match higher upgrade needs
+    
     this.stats.gold += 350 + (this.stats.level * 60);
     this.onStatsUpdate({ ...this.stats });
     if (this.stats.level > 30) { this.onGameOver(); return; }
+
+    // Resize and rebuild for next level
+    this.updateMapDimensions();
     this.createPath();
     this.drawPath();
   }
 }
+
+function multiplierToSpeed(m: number) { return m; }

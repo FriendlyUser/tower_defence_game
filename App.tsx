@@ -172,7 +172,7 @@ export default function App() {
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-slate-950 text-slate-100 font-sans p-4 gap-4 overflow-hidden">
       {/* Sidebar */}
-      <div className="w-full lg:w-80 flex flex-col gap-4 no-print">
+      <div className="w-full lg:w-80 flex flex-col gap-4 no-print shrink-0">
         <div className="p-6 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl">
           <h1 className="text-2xl font-black mb-1 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
             POLYGON SIEGE
@@ -328,8 +328,8 @@ export default function App() {
       </div>
 
       {/* Main Game Area */}
-      <div className="flex-1 flex flex-col gap-4 relative">
-        <div id="game-container" className="flex-1 bg-slate-900 rounded-xl shadow-inner relative overflow-hidden border border-slate-800">
+      <div className="flex-1 flex flex-col gap-4 relative min-w-0">
+        <div id="game-container" className="flex-1 bg-slate-900 rounded-xl shadow-inner relative overflow-x-auto overflow-y-hidden border border-slate-800">
           
           {/* HUD Overlay - Chronos badge */}
           {stats.gameSpeed > 1 && (
@@ -339,7 +339,7 @@ export default function App() {
           )}
 
           {/* Screens Overlay */}
-          <div className="absolute inset-0 z-20 pointer-events-none">
+          <div className="absolute inset-0 z-20 pointer-events-none sticky left-0">
             {gameState === GameState.START && (
               <div className="absolute inset-0 pointer-events-auto flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-700">
                 <div className="p-12 text-center max-w-md">
