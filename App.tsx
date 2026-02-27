@@ -4,6 +4,67 @@ import Phaser from 'phaser';
 import { MainScene } from './game/MainScene';
 import { GameState, GameStats, TowerConfig, TowerInstance, TargetingPriority } from './types';
 
+interface TutorialStepDef {
+  title: string;
+  content: string;
+  targetId?: string;
+  condition?: (stats: GameStats, placement: TowerConfig | null, instance: TowerInstance | null) => boolean;
+  autoAdvance?: boolean;
+}
+
+const TUTORIAL_STEPS: TutorialStepDef[] = [
+  {
+    title: "Welcome Commander",
+    content: "Welcome to Polygon Siege. Let's walk through the basics of defending the core. Click Next to continue.",
+  },
+  {
+    title: "Tactical Arsenal",
+    content: "This is your arsenal. Select the 'Striker' tower to prepare for placement.",
+    targetId: "tower-btn-basic",
+    condition: (stats, placement, instance) => placement?.id === 'basic',
+    autoAdvance: true
+  },
+  {
+    title: "Tower Placement",
+    content: "Now, click anywhere on the dark grid (away from the path) to place your tower. It costs 100 Gold.",
+    targetId: "game-container",
+    condition: (stats, placement, instance) => stats.towerCount > 0,
+    autoAdvance: true
+  },
+  {
+    title: "Engage the Enemy",
+    content: "Excellent. Now click the ENGAGE WAVE button to start the first wave of enemies.",
+    targetId: "engage-btn",
+    condition: (stats, placement, instance) => stats.waveActive,
+    autoAdvance: true
+  },
+  {
+    title: "Select Tower",
+    content: "While the tower defends, click on it to view its intel and upgrade options.",
+    targetId: "game-container",
+    condition: (stats, placement, instance) => instance !== null,
+    autoAdvance: true
+  },
+  {
+    title: "Upgrade Tower",
+    content: "Upgrading increases damage and fire rate. Click the UPGRADE button.",
+    targetId: "upgrade-btn",
+    condition: (stats, placement, instance) => instance !== null && instance.level > 1,
+    autoAdvance: true
+  },
+  {
+    title: "Targeting Priority",
+    content: "You can change who the tower targets first. Try setting it to 'STRONGEST'.",
+    targetId: "priority-STRONGEST",
+    condition: (stats, placement, instance) => instance !== null && instance.targetingPriority === 'STRONGEST',
+    autoAdvance: true
+  },
+  {
+    title: "Tutorial Complete",
+    content: "You're ready to command! Defend the core through all 30 waves.",
+  }
+];
+
 const TOWERS: TowerConfig[] = [
   {
     id: 'basic',
@@ -52,6 +113,7 @@ export default function App() {
   });
   const [selectedPlacementTower, setSelectedPlacementTower] = useState<TowerConfig | null>(null);
   const [selectedTowerInstance, setSelectedTowerInstance] = useState<TowerInstance | null>(null);
+  const [tutorialStep, setTutorialStep] = useState<number>(-1);
   
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<MainScene | null>(null);
@@ -109,6 +171,15 @@ export default function App() {
       setGameState(GameState.WIN);
     }
   }, [stats.level]);
+
+  useEffect(() => {
+    if (tutorialStep >= 0 && tutorialStep < TUTORIAL_STEPS.length) {
+      const step = TUTORIAL_STEPS[tutorialStep];
+      if (step.autoAdvance && step.condition && step.condition(stats, selectedPlacementTower, selectedTowerInstance)) {
+        setTutorialStep(s => s + 1);
+      }
+    }
+  }, [stats, selectedPlacementTower, selectedTowerInstance, tutorialStep]);
 
   const togglePlacementTower = (tower: TowerConfig) => {
     const newSelected = selectedPlacementTower?.id === tower.id ? null : tower;
@@ -170,7 +241,61 @@ export default function App() {
   const isEngageDisabled = stats.waveActive || (stats.level === 1 && stats.towerCount === 0);
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen bg-slate-950 text-slate-100 font-sans p-4 gap-4 overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-screen bg-slate-950 text-slate-100 font-sans p-4 gap-4 overflow-hidden relative">
+      {/* Tutorial Overlay */}
+      {tutorialStep >= 0 && tutorialStep < TUTORIAL_STEPS.length && (
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border-2 border-blue-500 rounded-xl p-6 shadow-[0_0_40px_rgba(59,130,246,0.3)] max-w-md w-full animate-in slide-in-from-top-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-black shrink-0">
+              {tutorialStep + 1}
+            </div>
+            <h3 className="text-xl font-black text-white">{TUTORIAL_STEPS[tutorialStep].title}</h3>
+          </div>
+          <p className="text-slate-300 mb-6">{TUTORIAL_STEPS[tutorialStep].content}</p>
+          
+          <div className="flex justify-end gap-3">
+            <button 
+              onClick={() => setTutorialStep(-1)}
+              className="px-4 py-2 text-sm font-bold text-slate-400 hover:text-white transition-colors"
+            >
+              SKIP TUTORIAL
+            </button>
+            {!TUTORIAL_STEPS[tutorialStep].autoAdvance && (
+              <button 
+                onClick={() => {
+                  if (tutorialStep === TUTORIAL_STEPS.length - 1) {
+                    setTutorialStep(-1);
+                  } else {
+                    setTutorialStep(s => s + 1);
+                  }
+                }}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition-colors shadow-lg"
+              >
+                {tutorialStep === TUTORIAL_STEPS.length - 1 ? 'FINISH' : 'NEXT'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tutorial Highlight Styles */}
+      {tutorialStep >= 0 && TUTORIAL_STEPS[tutorialStep].targetId && (
+        <style>{`
+          #${TUTORIAL_STEPS[tutorialStep].targetId} {
+            position: relative;
+            z-index: 40;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.8) !important;
+            border-color: #3b82f6 !important;
+            animation: tutorial-pulse 2s infinite;
+          }
+          @keyframes tutorial-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+          }
+        `}</style>
+      )}
+
       {/* Sidebar */}
       <div className="w-full lg:w-80 flex flex-col gap-4 no-print shrink-0">
         <div className="p-6 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl">
@@ -246,6 +371,7 @@ export default function App() {
                 </div>
 
                 <button
+                  id="upgrade-btn"
                   onClick={handleUpgrade}
                   disabled={stats.gold < upgradeCost}
                   className={`mt-4 w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
@@ -265,6 +391,7 @@ export default function App() {
               <div className="grid grid-cols-2 gap-2">
                 {Object.values(TargetingPriority).map(priority => (
                   <button
+                    id={`priority-${priority}`}
                     key={priority}
                     onClick={() => changeTargetingPriority(priority)}
                     className={`p-3 text-[10px] font-bold rounded-md border transition-all ${
@@ -284,6 +411,7 @@ export default function App() {
               <div className="space-y-3">
                 {TOWERS.map(tower => (
                   <button
+                    id={`tower-btn-${tower.id}`}
                     key={tower.id}
                     onClick={() => togglePlacementTower(tower)}
                     disabled={stats.gold < tower.cost}
@@ -311,6 +439,7 @@ export default function App() {
         </div>
 
         <button
+          id="engage-btn"
           onClick={startNextWave}
           disabled={isEngageDisabled}
           className={`w-full py-4 rounded-xl font-black text-lg transition-all shadow-lg active:scale-95 ${
@@ -350,12 +479,27 @@ export default function App() {
                   </div>
                   <h2 className="text-5xl font-black mb-4 tracking-tighter">COMMAND READY</h2>
                   <p className="text-slate-400 mb-8 font-light leading-relaxed">Defend the core through 30 waves of escalating geometric evolution. Optimize your arsenal and master temporal flow.</p>
-                  <button 
-                    onClick={() => setGameState(GameState.PLAYING)} 
-                    className="px-10 py-4 bg-blue-600 hover:bg-blue-500 rounded-full font-bold text-xl transition-all shadow-[0_0_40px_rgba(37,99,235,0.4)] active:scale-95"
-                  >
-                    INITIALIZE DEFENSES
-                  </button>
+                  <div className="flex flex-col gap-4 w-full">
+                    <button 
+                      onClick={() => {
+                        if (sceneRef.current) sceneRef.current.scene.restart();
+                        setGameState(GameState.PLAYING);
+                      }} 
+                      className="w-full px-10 py-4 bg-blue-600 hover:bg-blue-500 rounded-full font-bold text-xl transition-all shadow-[0_0_40px_rgba(37,99,235,0.4)] active:scale-95"
+                    >
+                      INITIALIZE DEFENSES
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (sceneRef.current) sceneRef.current.scene.restart();
+                        setGameState(GameState.PLAYING);
+                        setTutorialStep(0);
+                      }} 
+                      className="w-full px-10 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-full font-bold text-xl transition-all active:scale-95 text-slate-300"
+                    >
+                      TRAINING SIMULATION
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
